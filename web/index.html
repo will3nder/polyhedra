@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Tesseract Demo</title>
+<style>
+    body {
+        background: black;
+        color: white;
+        font-family: monospace;
+        margin: 0;
+        overflow: hidden;
+    }
+    pre {
+        line-height: 1;
+        font-size: 12px;
+    }
+</style>
+</head>
+<body>
+<pre id="screen"></pre>
+
+<script>
+
+// --- CONFIG ---
+
+const WIDTH = 80;
+const HEIGHT = 40;
+
+const RENDER_SCALE = 3;
+const RWIDTH = WIDTH * RENDER_SCALE;
+const RHEIGHT = HEIGHT * RENDER_SCALE;
+
+// --- DATA STRUCTURES ---
+
+class Vertex {
+    constructor(x,y,z,w){
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        this.w = w;
+    }
+}
+
+class Edge {
+    constructor(a,b){
+        this.start = a;
+        this.end = b;
+    }
+}
+
+// --- TESSERACT ---
+
+let vertices = [];
+let edges = [];
+
+function initTesseract(){
+
+    // All (±1, ±1, ±1, ±1)
+    for(let x=-1; x<=1; x+=2)
+        for(let y=-1; y<=1; y+=2)
+            for(let z=-1; z<=1; z+=2)
+                for(let w=-1; w<=1; w+=2)
+                    vertices.push(new Vertex(x,y,z,w));
+
+    // Connect vertices differing by 1 coordinate
+    for(let i=0;i<16;i++){
+        for(let j=i+1;j<16;j++){
+
+            let diff = 0;
+            if(vertices[i].x !== vertices[j].x) diff++;
+            if(vertices[i].y !== vertices[j].y) diff++;
+            if(vertices[i].z !== vertices[j].z) diff++;
+            if(vertices[i].w !== vertices[j].w) diff++;
+
+            if(diff === 1)
+                edges.push(new Edge(i,j));
+        }
+    }
+}
+
+// --- BUFFERS ---
+
+let zbuffer = [];
+let render = [];
+let buffer = [];
+
+function initBuffers(){
+    for(let y=0;y<RHEIGHT;y++){
+        zbuffer[y] = [];
+        render[y] = [];
+        for(let x=0;x<RWIDTH;x++){
+            zbuffer[y][x] = -1e9;
+            render[y][x] = 0;
+        }
+    }
+
+    for(let y=0;y<HEIGHT;y++){
+        buffer[y] = [];
+        for(let x=0;x<WIDTH;x++){
+            buffer[y][x] = " ";
+        }
+    }
+}
+
+// --- DRAWING ---
+
+function plot(x,y,depth){
+    if(x>=0 && x<RWIDTH && y>=0 && y<RHEIGHT){
+        if(depth > zbuffer[y][x]){
+            zbuffer[y][x] = depth;
+        }
+    }
+}
+
+function drawLine(x0,y0,d0,x1,y1,d1){
+
+    let dx = Math.abs(x1-x0);
+    let sx = x0<x1 ? 1 : -1;
+    let dy = -Math.abs(y1-y0);
+    let sy = y0<y1 ? 1 : -1;
+    let err = dx + dy;
+
+    let steps = Math.max(dx,-dy);
+    let step = 0;
+
+    while(true){
+
+        let t = steps ? step/steps : 0;
+        let depth = d0 + (d1-d0)*t;
+
+        plot(x0,y0,depth);
+
+        if(x0===x1 && y0===y1) break;
+
+        let e2 = 2*err;
+        if(e2>=dy){ err+=dy; x0+=sx; }
+        if(e2<=dx){ err+=dx; y0+=sy; }
+
+        step++;
+    }
+}
+
+// --- ROTATION STATE ---
+
+let angle_x = 0;
+let angle_y = 0;
+let angle_xw = 0;
+let angle_yw = 0;
+let angle_zw = 0;
+
+// --- MAIN RENDER LOOP ---
+
+function frame(){
+
+    initBuffers();
+
+    let projected = [];
+
+    for(let i=0;i<vertices.length;i++){
+
+        let {x,y,z,w} = vertices[i];
+
+        // 4D ROTATIONS
+
+        let cos_xw = Math.cos(angle_xw);
+        let sin_xw = Math.sin(angle_xw);
+        [x,w] = [x*cos_xw - w*sin_xw, x*sin_xw + w*cos_xw];
+
+        let cos_yw = Math.cos(angle_yw);
+        let sin_yw = Math.sin(angle_yw);
+        [y,w] = [y*cos_yw - w*sin_yw, y*sin_yw + w*cos_yw];
+
+        let cos_zw = Math.cos(angle_zw);
+        let sin_zw = Math.sin(angle_zw);
+        [z,w] = [z*cos_zw - w*sin_zw, z*sin_zw + w*cos_zw];
+
+        // 3D ROTATIONS
+
+        let tempY = y*Math.cos(angle_x) - z*Math.sin(angle_x);
+        let tempZ = y*Math.sin(angle_x) + z*Math.cos(angle_x);
+        y = tempY;
+        z = tempZ;
+
+        let tempX = x*Math.cos(angle_y) + z*Math.sin(angle_y);
+        z = -x*Math.sin(angle_y) + z*Math.cos(angle_y);
+        x = tempX;
+
+        // 4D -> 3D perspective
+
+        let wFactor = 1/(2 - w*0.5);
+        x*=wFactor;
+        y*=wFactor;
+        z*=wFactor;
+
+        // 3D -> 2D
+
+        let distance = 4;
+        let factor = 50/(distance - z*0.5);
+
+        let px = Math.floor(x*factor*2*RENDER_SCALE + RWIDTH/2);
+        let py = Math.floor(y*factor*RENDER_SCALE + RHEIGHT/2);
+
+        let depth = 1/(1+Math.abs(z)*0.5);
+
+        projected.push({x:px,y:py,depth});
+    }
+
+    // DRAW EDGES
+
+    for(let e of edges){
+        let a = projected[e.start];
+        let b = projected[e.end];
+        drawLine(a.x,a.y,a.depth,b.x,b.y,b.depth);
+    }
+
+    // SUPERSAMPLE TO ASCII
+
+    const ramp = " .:-=+*#%@";
+
+    for(let y=0;y<HEIGHT;y++){
+        for(let x=0;x<WIDTH;x++){
+
+            let maxDepth = -1e9;
+
+            for(let sy=0;sy<RENDER_SCALE;sy++)
+                for(let sx=0;sx<RENDER_SCALE;sx++){
+                    let rx = x*RENDER_SCALE + sx;
+                    let ry = y*RENDER_SCALE + sy;
+                    if(zbuffer[ry][rx] > maxDepth)
+                        maxDepth = zbuffer[ry][rx];
+                }
+
+            if(maxDepth>-1e8){
+                let idx = Math.min(9,Math.floor(maxDepth*9));
+                buffer[y][x] = ramp[idx];
+            } else {
+                buffer[y][x] = " ";
+            }
+        }
+    }
+
+    // OUTPUT
+
+    let output = "";
+    for(let y=0;y<HEIGHT;y++){
+        output += buffer[y].join("") + "\n";
+    }
+
+    document.getElementById("screen").textContent = output;
+
+    // AUTO ROTATE
+
+    angle_x += 0.01;
+    angle_y += 0.015;
+    angle_xw += 0.007;
+    angle_yw += 0.005;
+    angle_zw += 0.009;
+
+    requestAnimationFrame(frame);
+}
+
+// --- START ---
+
+initTesseract();
+requestAnimationFrame(frame);
+
+</script>
+</body>
+</html>
