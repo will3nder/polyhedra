@@ -389,38 +389,6 @@ int kbhit(void){
 
 // --- Drawing Utils ---
 
-// Draw reference axes at bottom left corner
-void draw_axes(char buffer[HEIGHT][WIDTH]) {
-    int cx = 5, cy = HEIGHT - 5;  // corner position
-    int len = 3;
-    
-    // X axis (horizontal) - using > chars
-    for (int i = 0; i < len; i++) {
-        if (cx + i < WIDTH && cy < HEIGHT) {
-            buffer[cy][cx + i] = (i == len - 1) ? '>' : '~';
-        }
-    }
-    
-    // Y axis (vertical) - using ^ chars  
-    for (int i = 0; i < len; i++) {
-        if (cx < WIDTH && cy - i < HEIGHT) {
-            buffer[cy - i][cx] = (i == len - 1) ? '^' : '~';
-        }
-    }
-    
-    // Z axis (diagonal) - using / chars
-    for (int i = 0; i < len; i++) {
-        if (cx - i < WIDTH && cy - i < HEIGHT && cx - i >= 0) {
-            buffer[cy - i][cx - i] = (i == len - 1) ? '+' : '*';
-        }
-    }
-    
-    // Labels
-    if (cx + len + 1 < WIDTH) buffer[cy][cx + len + 1] = 'X';
-    if (cy - len - 1 >= 0) buffer[cy - len - 1][cx] = 'Y';
-    if (cy - len - 1 >= 0 && cx - len - 1 >= 0) buffer[cy - len - 1][cx - len - 1] = 'Z';
-}
-
 char get_vertex_char(float depth) {
     // Use different characters based on depth
     // depth ranges from 0 (far) to 1+ (close)
