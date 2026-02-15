@@ -321,6 +321,47 @@ void init_mobius() {
     }
 }
 
+// --- Hypersphere (4D) ---
+#define HYPER_RES_THETA1 10
+#define HYPER_RES_THETA2 10
+#define HYPER_RES_PHI 10
+
+Vertex hypersphere_v[HYPER_RES_THETA1*HYPER_RES_THETA2*HYPER_RES_PHI];
+Edge hypersphere_e[HYPER_RES_THETA1*HYPER_RES_THETA2*HYPER_RES_PHI*6];
+
+void init_hypersphere(){
+	int idx = 0;
+	float r = 1.0f;
+	for(int i = 0; i < HYPER_RES_THETA1; i++){
+		float theta1 = PI * i / (HYPER_RES_THETA1-1);
+		for(int j = 0; j < HYPER_RES_THETA2; j++){
+			float theta2 = PI * i / (HYPER_RES_THETA2-1);
+			for(int k = 0; k < HYPER_RES_PHI; k++){
+				float phi = 2*PI*k / (HYPER_RES_PHI-1);
+				hypersphere_v[idx++] = (Vertex){
+					r*sin(theta1)*sin(theta2)*cos(phi),
+					r*sin(theta1)*sin(theta2)*sin(phi),
+					r*sin(theta1)*cos(theta2),
+					r*cos(theta1)
+				};
+			}
+		}
+	}
+
+	int e_idx = 0;
+	int N = HYPER_RES_THETA1*HYPER_RES_THETA2*HYPER_RES_PHI;
+	for(int i = 0; i < N; i++){
+		for(int j = i+1; j < N; j++){
+			int diff = 0;
+			if(hypersphere_v[i].x != hypersphere_v[j].x) diff++;
+			if(hypersphere_v[i].y != hypersphere_v[j].y) diff++;
+			if(hypersphere_v[i].z != hypersphere_v[j].z) diff++;
+			if(hypersphere_v[i].w != hypersphere_v[j].w) diff++;
+			if(diff==1 && e_idx < N*6) hypersphere_e[e_idx++] = (Edge){i,j};
+		}
+	}
+}
+
 // 4D Rotation matrices (inline in main loop)
 // These are now handled directly in the transformation code
 
@@ -518,8 +559,9 @@ int main() {
     init_stella_octangula();
     init_sphere();
     init_mobius();
+    init_hypersphere();
 
-    Polyhedron shapes[8];
+    Polyhedron shapes[9];
 
     // Shape 0 Isocahedron
     shapes[0].v_count = 12;
@@ -556,7 +598,7 @@ int main() {
     shapes[4].edges = toc_e;
     strcpy(shapes[4].name, "Truncated Octahedron");
 
-	// Shape 5 Stella Octangula
+    // Shape 5 Stella Octangula
     shapes[5].v_count = 12;
     shapes[5].e_count = 24;
     shapes[5].vertices = soc_v;
@@ -576,6 +618,13 @@ int main() {
     shapes[7].vertices = mobius_v;
     shapes[7].edges = mobius_e;
     strcpy(shapes[7].name, "Mobius Strip");
+
+    // Shape 8 Hypersphere
+    shapes[8].v_count = HYPER_RES_THETA1*HYPER_RES_THETA2*HYPER_RES_PHI;
+    shapes[8].e_count = HYPER_RES_THETA1*HYPER_RES_THETA2*HYPER_RES_PHI*6;
+    shapes[8].vertices = hypersphere_v;
+    shapes[8].edges = hypersphere_e;
+    strcpy(shapes[8].name, "Hypersphere");
 
     char buffer[HEIGHT][WIDTH];
     float render[RHEIGHT][RWIDTH];
@@ -598,6 +647,7 @@ int main() {
             if (c == '6') current_shape_idx = 5;
             if (c == '7') current_shape_idx = 6;
             if (c == '8') current_shape_idx = 7;
+	    if (c == '9') current_shape_idx = 8;
             if (c == 'f') { fuzziness += 0.05; if (fuzziness >= 10) fuzziness = 9.95f; }
             if (c == 'g') { fuzziness -= 0.05; if (fuzziness < 0) fuzziness = 0; }
 
@@ -656,7 +706,7 @@ int main() {
             w += noise;
 
             // 4D Rotations (only for 4D objects)
-            if (current_shape_idx == 3) {
+            if (current_shape_idx == 3 || current_shape_idx == 8) {
                 // Rotate in xw plane
                 float cos_xw = cos(angle_xw), sin_xw = sin(angle_xw);
                 float new_x = x * cos_xw - w * sin_xw;
