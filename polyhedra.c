@@ -283,6 +283,44 @@ void init_sphere(){
     }
 }
 
+// Mobius Strip
+
+#define MOBIUS_RES_U 50
+#define MOBIUS_RES_V 10
+
+Vertex mobius_v[MOBIUS_RES_U*MOBIUS_RES_V];
+Edge mobius_e[MOBIUS_RES_U*MOBIUS_RES_V*2];
+
+void init_mobius() {
+    int idx = 0;
+    float R = 1.0f, w = 0.3f;
+    for(int i=0;i<MOBIUS_RES_U;i++){
+        float t = 2*PI*i/MOBIUS_RES_U;
+        for(int j=0;j<MOBIUS_RES_V;j++){
+            float s = ((float)j/(MOBIUS_RES_V-1)-0.5f)*w;
+            mobius_v[idx++] = (Vertex){
+                (R + s*cos(t/2))*cos(t),
+                (R + s*cos(t/2))*sin(t),
+                s*sin(t/2),
+                0
+            };
+        }
+    }
+
+    int e_idx = 0;
+    for(int i=0;i<MOBIUS_RES_U;i++){
+        for(int j=0;j<MOBIUS_RES_V;j++){
+            int a = i*MOBIUS_RES_V + j;
+            int b = i*MOBIUS_RES_V + (j+1)%MOBIUS_RES_V; // wrap V
+            int c = ((i+1)%MOBIUS_RES_U)*MOBIUS_RES_V + j; // wrap U
+            if(e_idx+2 < MOBIUS_RES_U*MOBIUS_RES_V*2){
+                mobius_e[e_idx++] = (Edge){a,b};
+                mobius_e[e_idx++] = (Edge){a,c};
+            }
+        }
+    }
+}
+
 // 4D Rotation matrices (inline in main loop)
 // These are now handled directly in the transformation code
 
@@ -479,8 +517,9 @@ int main() {
     init_truncated_octahedron();
     init_stella_octangula();
     init_sphere();
+    init_mobius();
 
-    Polyhedron shapes[7];
+    Polyhedron shapes[8];
 
     // Shape 0 Isocahedron
     shapes[0].v_count = 12;
@@ -531,6 +570,13 @@ int main() {
     shapes[6].edges = sphere_e;
     strcpy(shapes[6].name, "Sphere");
 
+    // Shape 7 Mobius Strip
+    shapes[7].v_count = MOBIUS_RES_U*MOBIUS_RES_V;
+    shapes[7].e_count = MOBIUS_RES_U*MOBIUS_RES_V*2;
+    shapes[7].vertices = mobius_v;
+    shapes[7].edges = mobius_e;
+    strcpy(shapes[7].name, "Mobius Strip");
+
     char buffer[HEIGHT][WIDTH];
     float render[RHEIGHT][RWIDTH];
     ProjectedVertex projected[100];
@@ -551,6 +597,7 @@ int main() {
             if (c == '5') current_shape_idx = 4;
             if (c == '6') current_shape_idx = 5;
             if (c == '7') current_shape_idx = 6;
+            if (c == '8') current_shape_idx = 7;
             if (c == 'f') { fuzziness += 0.05; if (fuzziness >= 10) fuzziness = 9.95f; }
             if (c == 'g') { fuzziness -= 0.05; if (fuzziness < 0) fuzziness = 0; }
 
@@ -759,7 +806,8 @@ int main() {
         fflush(stdout);
         usleep(15000);
     }
-
+    
+    printf("\033c"); // Clear Terminal
     printf("\033[?25h"); // Show cursor
     return 0;
 }
