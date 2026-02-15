@@ -335,7 +335,7 @@ void init_hypersphere(){
 	for(int i = 0; i < HYPER_RES_THETA1; i++){
 		float theta1 = PI * i / (HYPER_RES_THETA1-1);
 		for(int j = 0; j < HYPER_RES_THETA2; j++){
-			float theta2 = PI * i / (HYPER_RES_THETA2-1);
+			float theta2 = PI * j / (HYPER_RES_THETA2-1);
 			for(int k = 0; k < HYPER_RES_PHI; k++){
 				float phi = 2*PI*k / (HYPER_RES_PHI-1);
 				hypersphere_v[idx++] = (Vertex){
