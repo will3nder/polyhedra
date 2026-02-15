@@ -750,9 +750,14 @@ int main() {
             
             float factor = 50.0f / (distance - z * 0.5); // Zoom Factor
             
+            float depth;
+
             // Calculate depth for later use (normalized 0-1, where 1 is closest)
-            float depth = 1.0f / (1.0f + fabsf(z) * 0.5f);
-            
+            if(current_shape_idx == 3 || current_shape_idx == 8){
+                depth = 1.0f / (1.0f + fabsf(z) * 0.5f + fabsf(w) * 0.5f);
+            } else {
+                depth = 1.0f / (1.0f + fabsf(z) * 0.5f);
+            }
             // int px = (int)(x * factor * 2.0 + WIDTH / 2);
             // int py = (int)(y * factor + HEIGHT / 2);
 
