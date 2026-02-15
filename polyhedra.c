@@ -245,6 +245,44 @@ void init_tesseract() {
     }
 }
 
+// --- Sphere ---
+
+#define SPHERE_RES_THETA 20
+#define SPHERE_RES_PHI 20
+Vertex sphere_v[(SPHERE_RES_THETA+1)*(SPHERE_RES_PHI+1)];
+Edge sphere_e[(SPHERE_RES_THETA)*(SPHERE_RES_PHI)*2]; // Approx
+
+void init_sphere(){
+    int idx = 0;
+    float r = 1.0f;
+    for(int i = 0; i <= SPHERE_RES_THETA; i++){
+        float theta = PI * i / SPHERE_RES_THETA;
+        for(int j = 0; j <= SPHERE_RES_PHI; j++){
+            float phi = 2*PI*j / SPHERE_RES_PHI;
+            sphere_v[idx++] = (Vertex){
+                r*sin(theta)*cos(phi),
+                r*sin(theta)*sin(phi),
+                r*cos(theta),
+                0
+            };
+        }
+    }
+
+    int e_idx = 0;
+    for(int i = 0; i < SPHERE_RES_THETA; i++) {
+        for(int j = 0; j < SPHERE_RES_PHI; j++) {
+            int a = i*(SPHERE_RES_PHI+1)+j;
+            int b = a+1;
+            int c = a + (SPHERE_RES_PHI+1);
+            int d = c+1;
+            if(e_idx+4 < (SPHERE_RES_THETA)*(SPHERE_RES_PHI)*2){
+                sphere_e[e_idx++] = (Edge){a,b};
+                sphere_e[e_idx++] = (Edge){a,c};
+            }
+        }
+    }
+}
+
 // 4D Rotation matrices (inline in main loop)
 // These are now handled directly in the transformation code
 
@@ -440,8 +478,9 @@ int main() {
     init_tesseract();
     init_truncated_octahedron();
     init_stella_octangula();
+    init_sphere();
 
-    Polyhedron shapes[6];
+    Polyhedron shapes[7];
 
     // Shape 0 Isocahedron
     shapes[0].v_count = 12;
@@ -485,6 +524,13 @@ int main() {
     shapes[5].edges = soc_e;
     strcpy(shapes[5].name, "Stella Octangula");
 
+    // Shape 6 Sphere
+    shapes[6].v_count = (SPHERE_RES_THETA+1)*(SPHERE_RES_PHI+1);
+    shapes[6].e_count = SPHERE_RES_THETA*SPHERE_RES_PHI*2;
+    shapes[6].vertices = sphere_v;
+    shapes[6].edges = sphere_e;
+    strcpy(shapes[6].name, "Sphere");
+
     char buffer[HEIGHT][WIDTH];
     float render[RHEIGHT][RWIDTH];
     ProjectedVertex projected[100];
@@ -504,6 +550,7 @@ int main() {
             if (c == '4') current_shape_idx = 3;
             if (c == '5') current_shape_idx = 4;
             if (c == '6') current_shape_idx = 5;
+            if (c == '7') current_shape_idx = 6;
             if (c == 'f') { fuzziness += 0.05; if (fuzziness >= 10) fuzziness = 9.95f; }
             if (c == 'g') { fuzziness -= 0.05; if (fuzziness < 0) fuzziness = 0; }
 
