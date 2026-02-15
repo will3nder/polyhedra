@@ -328,8 +328,10 @@ void init_mobius() {
 
 Vertex hypersphere_v[HYPER_RES_THETA1*HYPER_RES_THETA2*HYPER_RES_PHI];
 Edge hypersphere_e[HYPER_RES_THETA1*HYPER_RES_THETA2*HYPER_RES_PHI*6];
+int actual_edges;
 
 void init_hypersphere(){
+    float target_edge_length = 2.0f * sin(PI / HYPER_RES_PHI);
 	int idx = 0;
 	float r = 1.0f;
 	for(int i = 0; i < HYPER_RES_THETA1; i++){
@@ -352,14 +354,24 @@ void init_hypersphere(){
 	int N = HYPER_RES_THETA1*HYPER_RES_THETA2*HYPER_RES_PHI;
 	for(int i = 0; i < N; i++){
 		for(int j = i+1; j < N; j++){
-			int diff = 0;
-			if(hypersphere_v[i].x != hypersphere_v[j].x) diff++;
-			if(hypersphere_v[i].y != hypersphere_v[j].y) diff++;
-			if(hypersphere_v[i].z != hypersphere_v[j].z) diff++;
-			if(hypersphere_v[i].w != hypersphere_v[j].w) diff++;
-			if(diff==1 && e_idx < N*6) hypersphere_e[e_idx++] = (Edge){i,j};
-		}
+            // 	int diff = 0;
+            // 	if(hypersphere_v[i].x != hypersphere_v[j].x) diff++;
+            // 	if(hypersphere_v[i].y != hypersphere_v[j].y) diff++;
+            // 	if(hypersphere_v[i].z != hypersphere_v[j].z) diff++;
+            // 	if(hypersphere_v[i].w != hypersphere_v[j].w) diff++;
+            // 	if(diff==1 && e_idx < N*6) hypersphere_e[e_idx++] = (Edge){i,j};
+            float dist = sqrt(pow(hypersphere_v[i].x - hypersphere_v[j].x,2) +
+                            pow(hypersphere_v[i].y - hypersphere_v[j].y,2) +
+                            pow(hypersphere_v[i].z - hypersphere_v[j].z,2) +
+                            pow(hypersphere_v[i].w - hypersphere_v[j].w,2));        
+            if(fabs(dist - target_edge_length) < 0.2f) { 
+                if (e_idx < sizeof(hypersphere_e)/sizeof(hypersphere_e[0])) {
+                    hypersphere_e[e_idx++] = (Edge){i,j};
+                }
+            }
+        }
 	}
+    actual_edges = e_idx;
 }
 
 // 4D Rotation matrices (inline in main loop)
@@ -589,7 +601,7 @@ int main() {
 
     // Shape 8 Hypersphere
     shapes[8].v_count = HYPER_RES_THETA1*HYPER_RES_THETA2*HYPER_RES_PHI;
-    shapes[8].e_count = HYPER_RES_THETA1*HYPER_RES_THETA2*HYPER_RES_PHI*6;
+    shapes[8].e_count = actual_edges;
     shapes[8].vertices = hypersphere_v;
     shapes[8].edges = hypersphere_e;
     strcpy(shapes[8].name, "Hypersphere");
