@@ -13,6 +13,11 @@
 #define PI 3.14159265389
 #define PHI 1.61803398875
 
+// Internal high resolution buffer (supersampled)
+#define RENDER_SCALE 3
+#define RWIDTH (WIDTH * RENDER_SCALE)
+#define RHEIGHT (HEIGHT * RENDER_SCALE)
+
 typedef struct {
     float x, y, z, w;
 } Vertex;
@@ -312,10 +317,33 @@ void clear_screen() {
         printf("\033[H\033[J"); // ANSI clear 
 }
 
-void plot(char buffer[HEIGHT][WIDTH], int x, int y, char c) {
-        if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT) {
-                    buffer[y][x] = c;
-                    }
+//void plot(char buffer[HEIGHT][WIDTH], int x, int y, char c) {
+//        if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT) {
+//                    buffer[y][x] = c;
+//                    }
+//}
+
+float zbuffer[RHEIGHT][RWIDTH];
+
+// void plot(char buffer[HEIGHT][WIDTH], float zbuffer[HEIGHT][WIDTH], int x, int y, char c, float depth) {
+// 	if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT) {
+// 		if (depth > zbuffer[y][x]) {
+// 			zbuffer[y][x] = depth;
+// 			buffer[y][x] = c;
+// 		}
+// 	}
+// }
+
+void plot(float zbuffer[RHEIGHT][RWIDTH], 
+          float depth_buffer[RHEIGHT][RWIDTH],
+          int x, int y, float depth) {
+
+    if (x >= 0 && x < RWIDTH && y >= 0 && y < RHEIGHT) {
+        if (depth > depth_buffer[y][x]) {
+            depth_buffer[y][x] = depth;
+            zbuffer[y][x] = depth;
+        }
+    }
 }
 
 // Get character based on depth (for shading edges)
@@ -329,23 +357,78 @@ char get_line_char(float depth) {
 
 // Depth-aware Bresenham's Line Algorithm
 // Uses different characters based on depth for shading effect
-void draw_line_depth(char buffer[HEIGHT][WIDTH], int x0, int y0, float d0, int x1, int y1, float d1) {
+//void draw_line_depth(char buffer[HEIGHT][WIDTH], int x0, int y0, float d0, int x1, int y1, float d1) {
+//    int dx = abs(x1-x0), sx = x0 < x1 ? 1 : -1;
+//   int dy = -abs(y1-y0), sy = y0 < y1 ? 1 : -1;
+//    int err = dx + dy, e2;
+//    float avg_depth = (d0 + d1) / 2.0f;
+//    
+//    // Get line character based on depth
+//    char line_char = get_line_char(avg_depth);
+//    int counter = 0;
+//
+//   while(1){
+//        plot(buffer, x0, y0, line_char);
+//        if (x0 == x1 && y0 == y1) break;
+//        e2 = 2 * err;
+//       if(e2 >= dy) { err += dy; x0 += sx; }
+//        if(e2 <= dx) { err += dx; y0 += sy; }
+//        counter++;
+//    }
+//}
+
+// void draw_line_depth(char buffer[HEIGHT][WIDTH], float zbuffer[HEIGHT][WIDTH],
+// 		     int x0, int y0, float d0,
+// 		     int x1, int y1, float d1) {
+
+// 	int dx = abs(x1-x0), sx = x0 < x1 ? 1 : -1;
+// 	int dy = -abs(y1-y0), sy = y0 < y1 ? 1 : -1;
+// 	int err = dx+dy, e2;
+
+// 	int steps = dx > -dy ? dx : -dy;
+// 	int step = 0;
+
+// 	while(1){
+// 		float t = steps ? (float)step / (float)steps : 0.0f;
+// 		float depth = d0 + (d1-d0) * t;
+// 		char line_char = get_line_char(depth);
+
+// 		plot(buffer, zbuffer, x0, y0, line_char, depth);
+
+// 		if (x0 == x1 && y0 == y1) break;
+// 		e2 = 2 * err;
+// 		if(e2 >= dy) { err += dy; x0 += sx; }
+// 		if(e2 <= dx) { err += dx; y0 += sy; }
+// 		step++;
+// 	}
+// }
+
+void draw_line_depth(float render[RHEIGHT][RWIDTH],
+                     float depth_buffer[RHEIGHT][RWIDTH],
+                     int x0, int y0, float d0,
+                     int x1, int y1, float d1) {
+
     int dx = abs(x1-x0), sx = x0 < x1 ? 1 : -1;
     int dy = -abs(y1-y0), sy = y0 < y1 ? 1 : -1;
     int err = dx + dy, e2;
-    float avg_depth = (d0 + d1) / 2.0f;
-    
-    // Get line character based on depth
-    char line_char = get_line_char(avg_depth);
-    int counter = 0;
 
-    while(1){
-        plot(buffer, x0, y0, line_char);
+    int steps = dx > -dy ? dx : -dy;
+    int step = 0;
+
+    while (1) {
+
+        float t = steps ? (float)step / (float)steps : 0.0f;
+        float depth = d0 + (d1 - d0) * t;
+
+        plot(render, depth_buffer, x0, y0, depth);
+
         if (x0 == x1 && y0 == y1) break;
+
         e2 = 2 * err;
-        if(e2 >= dy) { err += dy; x0 += sx; }
-        if(e2 <= dx) { err += dx; y0 += sy; }
-        counter++;
+        if (e2 >= dy) { err += dy; x0 += sx; }
+        if (e2 <= dx) { err += dx; y0 += sy; }
+
+        step++;
     }
 }
 
@@ -403,6 +486,7 @@ int main() {
     strcpy(shapes[5].name, "Stella Octangula");
 
     char buffer[HEIGHT][WIDTH];
+    float render[RHEIGHT][RWIDTH];
     ProjectedVertex projected[100];
 
     printf("\033[?25l"); // Hide Cursor
@@ -444,6 +528,20 @@ int main() {
         }
 
         memset(buffer, ' ', sizeof(buffer));
+
+        // for (int y = 0; y < HEIGHT; y++) {
+        //     for (int x = 0; x < WIDTH; x++) {
+        //         zbuffer[y][x] = -1e9f;
+        //     }
+        // }
+
+        for (int y = 0; y < RHEIGHT; y++) {
+            for (int x = 0; x < RWIDTH; x++) {
+                render[y][x] = 0.0f;
+                zbuffer[y][x] = -1e9f;
+            }
+        }
+
 
         Polyhedron *p = &shapes[current_shape_idx];
         
@@ -511,8 +609,11 @@ int main() {
             // Calculate depth for later use (normalized 0-1, where 1 is closest)
             float depth = 1.0f / (1.0f + fabsf(z) * 0.5f);
             
-            int px = (int)(x * factor * 2.0 + WIDTH / 2);
-            int py = (int)(y * factor + HEIGHT / 2);
+            // int px = (int)(x * factor * 2.0 + WIDTH / 2);
+            // int py = (int)(y * factor + HEIGHT / 2);
+
+            int px = (int)(x * factor * 2.0 * RENDER_SCALE + RWIDTH / 2);
+            int py = (int)(y * factor * RENDER_SCALE + RHEIGHT / 2);
 
             projected[i].x = px;
             projected[i].y = py;
@@ -522,16 +623,44 @@ int main() {
         for (int i = 0; i < p->e_count; i++) {
             int s = p->edges[i].start;
             int e = p->edges[i].end;
-            draw_line_depth(buffer,
+            draw_line_depth(render, zbuffer,
                   (int)projected[s].x, (int)projected[s].y, projected[s].depth,
                   (int)projected[e].x, (int)projected[e].y, projected[e].depth);
         }
         // Draw Vertices with depth-based characters
+        // Not used for new rendering style (supersampling)
         
-        for (int i = 0; i < p->v_count; i++){
-            char vc = get_vertex_char(projected[i].depth);
-            plot(buffer, (int)projected[i].x, (int)projected[i].y, vc);
+        // for (int i = 0; i < p->v_count; i++){
+        //     char vc = get_vertex_char(projected[i].depth);
+        //     plot(buffer, zbuffer, (int)projected[i].x, (int)projected[i].y, vc, projected[i].depth);
 
+        // }
+
+        const char *ramp = " .:-=+*#%@";
+
+        for (int y = 0; y < HEIGHT; y++) {
+            for (int x = 0; x < WIDTH; x++) {
+
+                float max_depth = -1e9f;
+                for (int sy = 0; sy < RENDER_SCALE; sy++){
+                    for (int sx = 0; sx < RENDER_SCALE; sx++){
+                        int rx = x * RENDER_SCALE + sx;
+                        int ry = y * RENDER_SCALE + sy;
+                        if (zbuffer[ry][rx] > max_depth){
+                            max_depth = zbuffer[ry][rx];
+                        }
+                    }
+                }
+
+                if(max_depth > -1e8f) {
+                    int idx = (int)(max_depth * 9.0f);
+                    if (idx < 0) idx = 0;
+                    if (idx > 9) idx = 9;
+                    buffer[y][x] = ramp[idx];
+                } else {
+                    buffer[y][x] = ' ';
+                }
+            }
         }
 
         // Render to Screen - build entire output as single string with fixed positioning
@@ -547,7 +676,7 @@ int main() {
         if (rot_y < 0) rot_y += 360.0f;
         
         offset += sprintf(output + offset, "\033[1;1H"); // Move to 1,1
-        offset += sprintf(output + offset, "╔════ POLYHEDRA VIEWER ════╗");
+        offset += sprintf(output + offset, "╔═══════ POLYHEDRA ════════╗");
         offset += sprintf(output + offset, "\033[2;1H");
         offset += sprintf(output + offset, "║ Shape: %-17s ║", p->name);
         offset += sprintf(output + offset, "\033[3;1H");
@@ -574,7 +703,7 @@ int main() {
         offset += sprintf(output + offset, "\033[39;1H");
         offset += sprintf(output + offset, "│ [1-6] Select  [WASD] Rotate");
         offset += sprintf(output + offset, "\033[40;1H");
-        offset += sprintf(output + offset, "│ [R] Auto-Rotate  [F/G] Fuzz");
+        offset += sprintf(output + offset, "│ [R] Auto-Rotate  [F/G] Distort");
         offset += sprintf(output + offset, "\033[41;1H");
         offset += sprintf(output + offset, "└────────────── [Q] Quit ────┘");
         output[offset] = '\0';
