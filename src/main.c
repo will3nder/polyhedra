@@ -6,8 +6,8 @@
 #include <GLFW/glfw3.h>
 #include "shapes.h"
 
-#define WIDTH  800
-#define HEIGHT 600
+#define WIDTH  1200
+#define HEIGHT 800
 
 // Global state (same as original code)
 float angle_x = 0.0f, angle_y = 0.0f;
@@ -103,7 +103,7 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Polyhedra Wireframe", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Polyhedra",  NULL, NULL);
     if (!window) {
         fprintf(stderr, "Failed to open GLFW window\n");
         glfwTerminate();
