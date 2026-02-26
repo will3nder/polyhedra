@@ -56,26 +56,46 @@ int main(int argc, char* argv[]) {
     int shape_count = 0;
     DIR *dir;
     if((dir = opendir(argv[1])) == NULL) {
-        fprintf(stderr, "Failed to open directory: %s", argv[1]);
+        fprintf(stderr, "Failed to open directory: %s\n", argv[1]);
         return -1;
     }
-    struct dirent *ent;
 
+    struct dirent *ent;
+    char** files = NULL;
+    int file_count = 0;
+
+    // Collect filenames to sort
     while ((ent = readdir(dir)) != NULL) {
         if (strstr(ent->d_name, ".shape")) {
-            char path[256];
-            sprintf(path, "%s/%s",argv[1], ent->d_name);
-            shapes = realloc(shapes, sizeof(Polyhedron) * (shape_count + 1));
-            if(load_shape(path, &shapes[shape_count])) {
-                shape_count++;
-            }
+            files = realloc(files, sizeof(char*) * (file_count + 1));
+            files[file_count] = strdup(ent->d_name);
+            file_count++;
         }
     }
     closedir(dir);
 
-    if (shape_count == 0) {
-        printf("No shapes found in %s\n", argv[1]);
+    if (file_count == 0) {
+        fprintf(stderr, "No shapes found in %s\n", argv[1]);
         return -1;
+    }
+
+    // Alphabetical Sort
+    int cmp(const void *a, const void *b) {
+        return strcmp(*(const char **)a, *(const char**)b);
+    }
+    qsort(files, file_count, sizeof(char*), cmp);
+
+    // Load Individual Files
+    for(int i = 0; i < file_count; i++) {
+        char path[256];
+        sprintf(path, "%s/%s", argv[1], files[i]);
+        // Put found shapes into arr in alphabetical order
+        shapes = realloc(shapes, sizeof(Polyhedron) * (shape_count + 1));
+        if(load_shape(path, &shapes[shape_count])){
+            shape_count++;
+        } else {
+            fprintf(stderr, "Shape \"%s/%s\" failed to intialize\n", argv[1], files[i]);
+        }
     }
 
 
