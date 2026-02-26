@@ -57,7 +57,7 @@ int main(int argc, char* argv[]) {
     glViewport(0, 0, WIDTH, HEIGHT);
 
     char** files = NULL;
-    int file_count = -1;
+    int file_count = 0;
     Polyhedron* shapes = NULL;
     int shape_count = 0;
 
