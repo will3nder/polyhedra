@@ -24,8 +24,5 @@ add_subdirectory(libs/glfw)
 target_link_libraries(polyhedra PRIVATE
     glfw
     OpenGL::GL
+    $<$<PLATFORM_ID:Linux>:m>
 )
-
-if(UNIX)
-    target_link_libraries(polyhedra m)
-endif()

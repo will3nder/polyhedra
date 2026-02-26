@@ -22,13 +22,31 @@ float fuzziness = 0.0f;
 int current_shape_idx = 0;
 int auto_rotate = 1;
 
+char* dirpath = "shapes";
 
 int main(int argc, char* argv[]) {
     // Check if shapes dir arg was sent
-    if(argc < 2) {
-        fprintf(stderr, "Usage: polyhedra [SHAPES_DIR]... [OPTION]...\n");
-        return(-1);
+    if(argc > 1) {
+        for (int i = 1; i < argc; i++) {
+            if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
+                fprintf(stdout, "Usage: polyhedra [OPTION]... \n"
+                                "Provide Interesting Visualizations of the .shape files in the specified directory.\n"
+                                "\n"
+                                "   -d, --dir[DIRECTORY]   Looks in the specified directory for.shape files.\n"
+                                "   -h, --help              Shows this dialogue.\n\n"
+                                );
+                return(0);
+            }
+            else if ((strcmp(argv[i], "--dir") == 0 || strcmp(argv[i], "-d") == 0) && argv[i+1] != NULL) {
+                dirpath = argv[i + 1];
+                goto pass;
+            }
+        }
+        fprintf(stdout, "%s: missing operand\nTry \"%s --help\" for more information.\n\n", argv[0], argv[0]);
+        return(0);
     }
+
+    pass:
 
     // Initialize GLFW
     if (!glfwInit()) {
@@ -65,11 +83,12 @@ int main(int argc, char* argv[]) {
     // WINDOWS BASED SYSTEMS USE THIS
     WIN32_FIND_DATAA findData;
     char searchPath[256];
-    sprintf(searchPath, "%s\\*.shape", argv[1]);
+    sprintf(searchPath, "%s\\*.shape", dirpath);
 
     HANDLE hFind = FindFirstFileA(searchPath, &findData);
     if (hFind == INVALID_HANDLE_VALUE) {
-        fprintf(stderr, "Failed to open directory: %s\n", argv[1]);
+        fprintf(stderr, "Failed to open directory: %s\n", dirpath);
+        return(-1);
     }
 
     // Populate the Array of files, NTFS Should sort it Alphanumerically, FAT will likely be off
@@ -84,8 +103,8 @@ int main(int argc, char* argv[]) {
     // POSIX COMPLIANT SYSTEMS USE THIS
     // Load shapes in from specified folder
     DIR *dir;
-    if((dir = opendir(argv[1])) == NULL) {
-        fprintf(stderr, "Failed to open directory: %s\n", argv[1]);
+    if((dir = opendir(dirpath)) == NULL) {
+        fprintf(stderr, "Failed to open directory: %s\n", dirpath);
         return -1;
     }
 
@@ -102,7 +121,7 @@ int main(int argc, char* argv[]) {
     closedir(dir);
 
     if (file_count == 0) {
-        fprintf(stderr, "No shapes found in %s\n", argv[1]);
+        fprintf(stderr, "No shapes found in %s\n", dirpath);
         return -1;
     }
 
@@ -117,13 +136,13 @@ int main(int argc, char* argv[]) {
     // Load Individual Files
     for(int i = 0; i < file_count; i++) {
         char path[256];
-        sprintf(path, "%s/%s", argv[1], files[i]);
+        sprintf(path, "%s/%s", dirpath, files[i]);
         // Put found shapes into arr in alphanumerical order
         shapes = realloc(shapes, sizeof(Polyhedron) * (shape_count + 1));
         if(load_shape(path, &shapes[shape_count])){
             shape_count++;
         } else {
-            fprintf(stderr, "Shape \"%s/%s\" failed to intialize\n", argv[1], files[i]);
+            fprintf(stderr, "Shape \"%s/%s\" failed to intialize\n", dirpath, files[i]);
         }
     }
 
