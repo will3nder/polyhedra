@@ -2,4 +2,4 @@ polyhedra
 build/
 .vs/
 out/
-.vscode/
+.vscode
