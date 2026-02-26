@@ -1,11 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <dirent.h>
 #include <math.h>
 #include <string.h>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include "shapes.h"
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <dirent.h>
+#endif
 
 #define WIDTH  1200
 #define HEIGHT 800
@@ -51,6 +56,20 @@ int main(int argc, char* argv[]) {
     }
     glViewport(0, 0, WIDTH, HEIGHT);
 
+    #ifdef _WIN32
+    // WINDOWS BASED SYSTEMS USE THIS
+    WIN32_FIND_DATAA findData;
+    char searchPath[256];
+    sprintf(searcPath, "%s\\*.shape", argv[1]);
+
+    HANDLE hFind = FindFirstFileA(searchPath, &findData);
+    if (hFind == INVALID_HANDLE_VALUE) {
+        fprintf(stderr, "Failed to open directory: %s\n", argv[1]);
+    }
+
+    
+    #else
+    // POSIX COMPLIANT SYSTEMS USE THIS
     // Load shapes in from specified folder
     Polyhedron* shapes = NULL;
     int shape_count = 0;
@@ -79,7 +98,7 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    // Alphabetical Sort
+    // Alphanumerical Sort
     int cmp(const void *a, const void *b) {
         return strcmp(*(const char **)a, *(const char**)b);
     }
@@ -89,7 +108,7 @@ int main(int argc, char* argv[]) {
     for(int i = 0; i < file_count; i++) {
         char path[256];
         sprintf(path, "%s/%s", argv[1], files[i]);
-        // Put found shapes into arr in alphabetical order
+        // Put found shapes into arr in alphanumerical order
         shapes = realloc(shapes, sizeof(Polyhedron) * (shape_count + 1));
         if(load_shape(path, &shapes[shape_count])){
             shape_count++;
@@ -97,7 +116,7 @@ int main(int argc, char* argv[]) {
             fprintf(stderr, "Shape \"%s/%s\" failed to intialize\n", argv[1], files[i]);
         }
     }
-
+    #endif
 
     // Build simple shader program (vertex + fragment)
     const char *vertexShaderSource =
