@@ -56,23 +56,33 @@ int main(int argc, char* argv[]) {
     }
     glViewport(0, 0, WIDTH, HEIGHT);
 
+    char** files = NULL;
+    int file_count = -1;
+    Polyhedron* shapes = NULL;
+    int shape_count = 0;
+
     #ifdef _WIN32
     // WINDOWS BASED SYSTEMS USE THIS
     WIN32_FIND_DATAA findData;
     char searchPath[256];
-    sprintf(searcPath, "%s\\*.shape", argv[1]);
+    sprintf(searchPath, "%s\\*.shape", argv[1]);
 
     HANDLE hFind = FindFirstFileA(searchPath, &findData);
     if (hFind == INVALID_HANDLE_VALUE) {
         fprintf(stderr, "Failed to open directory: %s\n", argv[1]);
     }
 
-    
+    // Populate the Array of files, NTFS Should sort it Alphanumerically, FAT will likely be off
+    do {
+        files = realloc(files, sizeof(char*) * (file_count + 1));
+        files[file_count] = _strdup(findData.cFileName);
+        file_count++;
+    } while (FindNextFileA(hFind, &findData));
+
+    FindClose(hFind);
     #else
     // POSIX COMPLIANT SYSTEMS USE THIS
     // Load shapes in from specified folder
-    Polyhedron* shapes = NULL;
-    int shape_count = 0;
     DIR *dir;
     if((dir = opendir(argv[1])) == NULL) {
         fprintf(stderr, "Failed to open directory: %s\n", argv[1]);
@@ -80,8 +90,6 @@ int main(int argc, char* argv[]) {
     }
 
     struct dirent *ent;
-    char** files = NULL;
-    int file_count = 0;
 
     // Collect filenames to sort
     while ((ent = readdir(dir)) != NULL) {
@@ -104,6 +112,8 @@ int main(int argc, char* argv[]) {
     }
     qsort(files, file_count, sizeof(char*), cmp);
 
+    #endif
+
     // Load Individual Files
     for(int i = 0; i < file_count; i++) {
         char path[256];
@@ -116,7 +126,6 @@ int main(int argc, char* argv[]) {
             fprintf(stderr, "Shape \"%s/%s\" failed to intialize\n", argv[1], files[i]);
         }
     }
-    #endif
 
     // Build simple shader program (vertex + fragment)
     const char *vertexShaderSource =
