@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <math.h>
 #include <string.h>
 #include <glad/glad.h>
@@ -25,6 +26,8 @@ int auto_rotate = 1;
 char* dirpath = "shapes";
 
 int main(int argc, char* argv[]) {
+    // Hide Terminal Cursor
+    system("echo -e \e[?25l");
     // Check if shapes dir arg was sent
     if(argc > 1) {
         for (int i = 1; i < argc; i++) {
@@ -217,30 +220,32 @@ int main(int argc, char* argv[]) {
     // Frametime and Framerate
     float lastTime = 0.0f;
     int frameCount = 0;
+    bool fps_toggle = false;
 
     // Main loop
     while (!glfwWindowShouldClose(window)) {
-        // Call Time to determine Frame Count
-        double currentTime = glfwGetTime();
-        frameCount++;
+        if (fps_toggle) {
+            // Call Time to determine Frame Count
+            double currentTime = glfwGetTime();
+            frameCount++;
 
-        if (currentTime - lastTime >= 1.0f) { // One Second Has Passed
-            fprintf(stdout, "FPS: %d\n", frameCount);
-            frameCount = 0;
-            lastTime = currentTime;
+            if (currentTime - lastTime >= 1.0f) { // One Second Has Passed
+                fprintf(stdout, "FPS: %d\n", frameCount);
+                frameCount = 0;
+                lastTime = currentTime;
+            }
         }
-
 
         // Input handling
         glfwPollEvents();
         // Use Arrow Keys to Cycle
-        if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+        if (glfwGetKey(window, GLFW_KEY_KP_ADD) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_EQUAL) == GLFW_PRESS) {
             current_shape_idx = (current_shape_idx + 1) % shape_count;
-            while(glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) glfwPollEvents();
+            while(glfwGetKey(window, GLFW_KEY_KP_ADD) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_EQUAL) == GLFW_PRESS) glfwPollEvents();
         }
-        if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
+        if (glfwGetKey(window, GLFW_KEY_KP_SUBTRACT) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_MINUS) == GLFW_PRESS) {
             current_shape_idx = current_shape_idx == 0 ? shape_count-1 : current_shape_idx-1;
-            while(glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) glfwPollEvents();
+            while(glfwGetKey(window, GLFW_KEY_KP_SUBTRACT) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_MINUS) == GLFW_PRESS) glfwPollEvents();
         }
 
         // Toggle auto-rotate
@@ -264,6 +269,7 @@ int main(int argc, char* argv[]) {
         if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS) angle_yw += 0.01f;
         if (glfwGetKey(window, GLFW_KEY_U) == GLFW_PRESS) angle_zw -= 0.01f;
         if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS) angle_zw += 0.01f;
+        if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) fps_toggle = !fps_toggle;
 
         if (auto_rotate) {
             angle_x += 0.004f;
@@ -347,6 +353,10 @@ int main(int argc, char* argv[]) {
 
     glfwDestroyWindow(window);
     glfwTerminate();
+
+    // Show Terminal Cursor
+    system("echo -e \e[?25h");
+
     return 0;
 }
 
