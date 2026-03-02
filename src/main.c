@@ -214,8 +214,23 @@ int main(int argc, char* argv[]) {
     // Allocate buffer for transformed vertices
     float vertexBuffer[2500];
 
+    // Frametime and Framerate
+    float lastTime = 0.0f;
+    int frameCount = 0;
+
     // Main loop
     while (!glfwWindowShouldClose(window)) {
+        // Call Time to determine Frame Count
+        double currentTime = glfwGetTime();
+        frameCount++;
+
+        if (currentTime - lastTime >= 1.0f) { // One Second Has Passed
+            fprintf(stdout, "FPS: %d\n", frameCount);
+            frameCount = 0;
+            lastTime = currentTime;
+        }
+
+
         // Input handling
         glfwPollEvents();
         // Use Arrow Keys to Cycle
